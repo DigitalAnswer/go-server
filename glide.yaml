@@ -1,0 +1,3 @@
+package: github.com/DigitalAnswer/go-server
+import:
+- package: github.com/justinas/alice

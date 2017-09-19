@@ -4,26 +4,42 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/justinas/alice"
 )
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
+// func handler(w http.ResponseWriter, r *http.Request) {
+// 	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
+// }
+
+func logger(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("%s requested %s", r.RemoteAddr, r.URL)
+		h.ServeHTTP(w, r)
+	})
 }
 
 func main() {
-	http.HandleFunc("/", handler)
 
-	// s := &http.Server{
-	// 	Addr:           ":8080",
-	// 	Handler:        myHandler,
-	// 	ReadTimeout:    10 * time.Second,
-	// 	WriteTimeout:   10 * time.Second,
-	// 	MaxHeaderBytes: 1 << 20,
-	// }
+	h := http.NewServeMux()
 
-	err := http.ListenAndServe(":8080", nil)
-	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
-		return
-	}
+	h.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "Hello")
+	})
+
+	c := &Controller{}
+	h.Handle("/bar", c)
+
+	chain := alice.New(
+		NewHeaderSetter("X-FOO", "BAR"),
+		NewHeaderSetter("X-BAZ", "BUZ"),
+		logger,
+	).Then(h)
+
+	// hl := logger(h)
+	// hhs := NewHeaderSetter("X-FOO", "BAR")(hl)
+
+	err := http.ListenAndServe(":8080", chain)
+	log.Fatal(err)
+
 }
